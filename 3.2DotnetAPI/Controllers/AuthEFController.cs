@@ -1,15 +1,12 @@
-using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
-using System.Text;
 using AutoMapper;
 using DotnetApi.Data;
 using DotnetAPI.Dtos;
+using DotnetAPI.Helpers;
 using DotnetAPI.Models;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
 
 namespace DotnetAPI.Controllers
 {
@@ -18,16 +15,15 @@ namespace DotnetAPI.Controllers
     [Route("[controller]")] //con esto hago q busque el nombre de la clase omitiendo la palabra controller
     //El nombre del controlador define el nombre de la ruta
     public class AuthEFController: ControllerBase{
-        private IConfiguration _config; 
         private IUserRepository _userRepository;
+        private AuthHelper _authHelper;        
         IMapper _mapper;
         public AuthEFController(IConfiguration config,IUserRepository userRepository){
-            _config = config;
             _userRepository = userRepository;
-
-             _mapper = new Mapper(new MapperConfiguration((cfg)=>{
-             cfg.CreateMap<UserRegistrationDto,User>(); //convierte de UserRegistrationDto a User
-        }));
+            _authHelper = new AuthHelper(config);
+            _mapper = new Mapper(new MapperConfiguration((cfg)=>{
+                cfg.CreateMap<UserRegistrationDto,User>(); //convierte de UserRegistrationDto a User
+            }));
         }
 
         [AllowAnonymous] //permite q este metodo sea accesible sin el token
@@ -44,7 +40,7 @@ namespace DotnetAPI.Controllers
                 rng.GetNonZeroBytes(passwordSalt);
             }
             
-            byte[] passwordHash = this.GetPasswordHash(user.Password,passwordSalt);
+            byte[] passwordHash = _authHelper.GetPasswordHash(user.Password,passwordSalt);
 
             UserAuth userAuth = new(){
                 Email = user.Email,
@@ -63,7 +59,7 @@ namespace DotnetAPI.Controllers
               Console.WriteLine("aca esta el id"+nuser.UserId);
             return Ok(
                 new Dictionary<string,string>(){
-                    {"token",CreateToken(nuser.UserId)}
+                    {"token",_authHelper.CreateToken(nuser.UserId)}
                 }
             );
         }
@@ -76,7 +72,7 @@ namespace DotnetAPI.Controllers
             if(userAuth == null)
                  return StatusCode(401,"User do not exits" );
 
-            byte[] passwordHash = this.GetPasswordHash(user.Password,userAuth.PasswordSalt);
+            byte[] passwordHash = _authHelper.GetPasswordHash(user.Password,userAuth.PasswordSalt);
             
             //if(passwordHash == userAuth.PasswordHash) => toca comparar pada posicion del array
            for (int index =0; index < passwordHash.Length; index ++){
@@ -89,7 +85,7 @@ namespace DotnetAPI.Controllers
                  throw new Exception ("Error in User");
             Console.WriteLine(userDb.UserId);
             return Ok(new Dictionary<string,string>(){
-                        {"token",CreateToken(userDb.UserId)}
+                        {"token",_authHelper.CreateToken(userDb.UserId)}
                     });           
         }
 
@@ -106,45 +102,8 @@ namespace DotnetAPI.Controllers
 
             int userIdF = _userRepository.GetSingleUser(int.Parse(userId)).UserId;
 
-            return CreateToken(userIdF);
+            return _authHelper.CreateToken(userIdF);
         }
 
-        private byte[] GetPasswordHash(string password,byte[] passwordSalt){
-            string passwordSaltPlusString = _config.GetSection("AppSettings:Passwordkey").Value + Convert.ToBase64String(passwordSalt);
-            byte[] passwordHash = KeyDerivation.Pbkdf2(
-                password: password,
-                salt: Encoding.ASCII.GetBytes(passwordSaltPlusString),
-                prf: KeyDerivationPrf.HMACSHA256,
-                iterationCount: 100,
-                numBytesRequested: 256/8
-            );
-            return passwordHash;
-        }
-
-        private string CreateToken(int userId){
-            Claim[] claims = new Claim[]{
-                new("userId", userId.ToString())
-            };
-
-            string? tokenkeyString = _config.GetSection("Appsettings:TokenKey").Value;
-
-            SymmetricSecurityKey tokenkey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(
-                    tokenkeyString != null ? tokenkeyString : ""
-                )
-            ); 
-
-            SigningCredentials credentials = new SigningCredentials(tokenkey,SecurityAlgorithms.HmacSha512Signature);
-
-            SecurityTokenDescriptor descriptor = new SecurityTokenDescriptor(){
-                Subject = new ClaimsIdentity(claims),
-                SigningCredentials = credentials,
-                Expires = DateTime.Now.AddDays(1)
-            };
-
-            JwtSecurityTokenHandler tokenHandler = new JwtSecurityTokenHandler();
-            SecurityToken token = tokenHandler.CreateToken(descriptor);
-            return tokenHandler.WriteToken(token);
-        }
     }
 }

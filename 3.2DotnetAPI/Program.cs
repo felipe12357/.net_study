@@ -32,6 +32,7 @@ builder.Services.AddCors((options)=>{
 //Importante con esto permite acceder a la interfaz recibiendola como parametro en el constructor de los controladores
 //haciendo algo como una inyeccion
 builder.Services.AddScoped<IUserRepository,UserRepository>();
+builder.Services.AddScoped<IPostRepository,PostRepository>();
 
 string? tokenkeyString = builder.Configuration.GetSection("AppSettings:TokenKey").Value;
 //Codigo agregado para validar los tokens
