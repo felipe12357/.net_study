@@ -109,6 +109,8 @@ Solucion para habilitar los snippets y extensiones
     dotnet add package microsoft.entityframeworkcore.sqlserver
     dotnet add package microsoft.entityframeworkcore.Relational
 
+    dotnet add package microsoft.AspNetCore.Authentication.JwtBearer
+
 ## SQL
     en sql, para mostrar todos los campos poner el cursor luego del * y presionar ctrl "+" space
 

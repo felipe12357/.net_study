@@ -7,8 +7,10 @@ namespace DotnetApi.Data {
         public void Insert<T>(T entityToInsert );
         public void Delete<T>(T entityToDelete );
         public IEnumerable<User> GetUsers();
-        public User? GetSingleUser(int id);
+        public User GetSingleUser(int id);
         public UserSalary? GetSingleUserSalary(int id);
         public UserJobInfo? GetSingleUserJobInfo(int id);
+        public User? GetUserByEmail(string mail);
+         public UserAuth? GetUserAuth(string mail); 
     }
 }

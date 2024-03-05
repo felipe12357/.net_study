@@ -9,6 +9,7 @@ namespace DotnetAPI.Data {
         public virtual DbSet<User> Users {get;set; }
         public virtual DbSet<UserSalary> UserSalary {get;set; }
         public virtual DbSet<UserJobInfo> UserJobInfo {get;set; }
+        public virtual DbSet<UserAuth> UserAuth {get;set; }
 
         //Se pueden hacer cualquiera de las dos artenativas para obtener los parametros de la Bd
         //1 enviar la configuración desde el constructor del repositorio
@@ -41,6 +42,9 @@ namespace DotnetAPI.Data {
 
             modelBuilder.Entity<UserSalary>().ToTable("UserSalary","TutorialAppSchema")
             .HasKey(u =>u.UserId);
+
+            modelBuilder.Entity<UserAuth>().ToTable("Auth","TutorialAppSchema")
+            .HasKey(u =>u.Email);
         }
     }
 }

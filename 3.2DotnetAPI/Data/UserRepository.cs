@@ -26,12 +26,20 @@ namespace DotnetApi.Data {
             return _contextEF.Users.ToList();
         }
 
-        public User? GetSingleUser(int id){
+        public User GetSingleUser(int id){
             User? user = _contextEF.Users.Where(u => u.UserId == id).FirstOrDefault();
             if(user!=null)
                 return user;
 
              throw new Exception ("User not found");
+        }
+
+        public User? GetUserByEmail(string mail){
+           return _contextEF.Users.Where(u => u.Email == mail).FirstOrDefault();
+        }
+
+        public UserAuth? GetUserAuth(string mail){
+            return _contextEF.UserAuth.Where(u => u.Email == mail).FirstOrDefault();
         }
 
 
