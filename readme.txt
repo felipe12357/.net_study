@@ -121,8 +121,6 @@ Solucion para habilitar los snippets y extensiones
     FirstName + ' ' + LastName as FullName
     FROM TutorialAppSchema.Users as Users  
 
-
-
     select 
     ISNULL (Department, 'No Department Label') as Department, //si no hay nombre del departamenot aparece el mensaje seleccionado
     SUM(salary) as salary,
@@ -174,6 +172,147 @@ Solucion para habilitar los snippets y extensiones
             GROUP By Department
         ) as dptoAverage
         ORDER by Users.UserId
+
+## SQL STORE PROCEDURE
+
+    USE DotNetCourseDatabase
+    GO
+
+    # crear un store PROCEDURE, la segunda linea esta comentada y se utiliza para ejecutarlo
+
+    CREATE PROCEDURE TutorialAppSchema.spGet_Users
+    -- EXEC  TutorialAppSchema.spGet_Users
+    As BEGIN
+        SELECT * From Users
+    END
+
+
+    ALTER PROCEDURE TutorialAppSchema.spGet_Users
+     -- EXEC  TutorialAppSchema.spGet_Users @user_id = 3
+    @user_id INT
+    As BEGIN
+        SELECT * From Users
+        Where UserId = @user_id
+    END
+
+
+    # Store Procedure con la creacion de una tabla temporal: #AverageDepartmentSalary (agiliza las consultas)
+    ALTER PROCEDURE TutorialAppSchema.spGetUsers_withAverageSalary 
+    As BEGIN
+    select AVG(Salary) as AverageSalary, Department
+    INTO #AverageDepartmentSalary
+    from TutorialAppSchema.Users as users
+    LEFT JOIN TutorialAppSchema.UserJobInfo as jobs on users.UserId = jobs.UserId
+    LEFT JOIN TutorialAppSchema.UserSalary as salaries on users.UserId = salaries.UserId
+    GROUP by Department
+
+    --creamos  un index para agilizar la consulta
+    CREATE CLUSTERED INDEX cix_averageDeptSalaryDepartment on #AverageDepartmentSalary(Department)
+
+    SELECT FirstName,LastName,Email,jobs.Department, tempAverageDptoSalary.AverageSalary
+    From Users
+    LEFT JOIN TutorialAppSchema.UserJobInfo as jobs on users.UserId = jobs.UserId
+    LEFT JOIN #AverageDepartmentSalary as tempAverageDptoSalary on tempAverageDptoSalary.Department = jobs.Department
+    END
+    -- EXEC  TutorialAppSchema.spGetUsers_withAverageSalary
+
+    # Store Procedure para insertar o Actualizar Usuarios
+        CREATE OR ALTER PROCEDURE TutorialAppSchema.spUser_Upsert
+            @FirstName NVARCHAR(50), @LastName NVARCHAR(50), @Email NVARCHAR(50),
+            @Gender NVARCHAR(50), @Active BIT =1
+        As BEGIN
+        IF EXISTS ( SELECT * From Users WHERE Email =@Email)
+                BEGIN
+                    UPDATE USERS SET 
+                        FirstName = @FirstName,
+                        LastName = @LastName,
+                        Email = @Email,
+                        Gender = @Gender,
+                        Active = @Active
+                    WHERE Email = @Email
+                END
+            ELSE
+                BEGIN 
+                    INSERT INTO Users ( FirstName, LastName, Email, Gender, Active)
+                    VALUES  ( @FirstName, @LastName, @Email, @Gender, @Active) 
+                END    
+        END
+
+        EXEC  TutorialAppSchema.spUser_Upsert @FirstName = 'Andres',  @LastName ='Tamayo', @Email='hola@abc.com', @Gender='M'
+
+    # Store procedure completo q actualiza otras tablas, @@IDENTITY nos retorna el ultimo registro ingresado
+
+        CREATE OR ALTER PROCEDURE TutorialAppSchema.spUser_Upsert2ndVersion
+        @FirstName NVARCHAR(50), @LastName NVARCHAR(50), @Email NVARCHAR(50),
+        @Gender NVARCHAR(50), @Active BIT =1, 
+        @salary DECIMAL (18,4),@JobTitle NVARCHAR(50), @Department NVARCHAR(50)
+        As BEGIN
+        IF EXISTS ( SELECT * From Users WHERE Email =@Email)
+            BEGIN
+                DECLARE @OutputuserId1 INT
+                UPDATE USERS SET 
+                    FirstName = @FirstName,
+                    LastName = @LastName,
+                    Email = @Email,
+                    Gender = @Gender,
+                    Active = @Active
+                WHERE Email = @Email
+
+                SET @OutputuserId1 = (SELECT UserId From Users WHERE Email =@Email)
+                UPDATE UserSalary set Salary = @salary WHERE UserId = @OutputuserId1
+                UPDATE UserJobInfo set Department = @Department, JobTitle = @JobTitle WHERE UserId = @OutputuserId1
+            END
+        ELSE
+            BEGIN 
+                DECLARE @OutputuserId INT
+
+                INSERT INTO Users ( FirstName, LastName, Email, Gender, Active)
+                VALUES  ( @FirstName, @LastName, @Email, @Gender, @Active) 
+
+                SET @OutputuserId = @@IDENTITY
+
+                INSERT into UserSalary (UserId,Salary)
+                VALUES ( @OutputuserId,@salary)
+
+                INSERT into UserJobInfo (UserId,JobTitle,Department)
+                VALUES (@OutputuserId,@JobTitle,@Department)
+            END    
+        END
+
+        EXEC TutorialAppSchema.spUser_Upsert2ndVersion @FirstName = 'Andrés',  @LastName ='Tamayo', @Email='hola2@abc.com', @Gender='M',
+        @salary = 350000, @JobTitle = "killing", @Department = 'Music'
+
+
+    #Store procedure para eliminar Usuarios
+    
+        Create PROCEDURE TutorialAppSchema.spUser_Delete
+            @UserId INT
+        AS BEGIN
+            DELETE from Users where UserId = @UserId
+            DELETE from UserJobInfo where UserId = @UserId
+            DELETE from UserSalary WHERE UserId = @UserId
+        END
+
+        EXEC  TutorialAppSchema.spUser_Delete @UserId = 3
+
+    #Store procedure para buscar post por usuario,post id content, o traer todos los registros
+
+        CREATE OR ALTER PROCEDURE TutorialAppSchema.spPosts_Get
+        @userId INT = NULL, @searchValue NVARCHAR(MAX) = Null, @postId INT = NULL
+        AS BEGIN
+            SELECT * FROM TutorialAppSchema.Posts
+            Where UserId = ISNULL(@userId,UserId) -- si envia el user id aplica el where de los contrario trae todos 
+                And PostId = ISNULL(@postId, PostId)
+                AND ( @searchValue IS null  --DE ESTA form se revisa si el valor enviado es nulo, si no es nulo evalua todo el parentesis
+                    OR PostContent LIKE '%' + @searchValue + '%'
+                    OR PostTitle LIKE '%' + @searchValue + '%'
+                )
+        END
+
+        EXEC TutorialAppSchema.spPosts_Get
+        EXEC TutorialAppSchema.spPosts_Get @userId = 1024
+        EXEC TutorialAppSchema.spPosts_Get @postId = 10, @searchValue=2
+
 
 ## DOTNET API
     dotnet new webapi -n DotnetAPIHellow
