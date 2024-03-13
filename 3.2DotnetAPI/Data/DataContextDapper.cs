@@ -28,6 +28,14 @@ namespace DotnetAPI.Data
             return data;
         }
 
+        public IEnumerable<T> LoadDataWithParameters<T>(string sql, DynamicParameters parameters){
+            IDbConnection dbConnection = new SqlConnection(_connectionString);
+            return dbConnection.Query<T>(sql, parameters);
+        }
+        public T LoadDataSingleWithParameters<T>(string sql, DynamicParameters parameters){
+            IDbConnection dbConnection = new SqlConnection(_connectionString);
+            return dbConnection.QuerySingle<T>(sql, parameters);
+        } 
         public int ExecuteSql(string sqlInjection) {
             IDbConnection dbConnection = new SqlConnection(_connectionString);
             int rowsAffected = dbConnection.Execute(sqlInjection);

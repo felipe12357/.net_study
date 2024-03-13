@@ -1,6 +1,8 @@
 using DotnetAPI.Data;
 using DotnetAPI.Models;
 using Microsoft.AspNetCore.Mvc;
+using Dapper; //necesario incluirlo para utilizar DynamicParameters
+using System.Data; //necesario para habilitar DbType
 
 namespace DotnetAPI.Controllers
 {
@@ -15,6 +17,16 @@ namespace DotnetAPI.Controllers
             _dapper = new DataContextDapper();
         }
 
+        [HttpGet("{userId}")]
+        public User GetUser(int userId){
+            DynamicParameters sqlParameters = new DynamicParameters();
+            sqlParameters.Add("@UserIdParameter", userId, DbType.Int32);
+            //Ejemplo utilizando los store procedures
+            string query =  @"exec TutorialAppSchema.spGet_Users
+                             @user_id = @UserIdParameter";
+            return _dapper.LoadDataSingleWithParameters<User>(query,sqlParameters);
+        }
+
         //el primer parametro sera el complemento a la ruta, en este caso GetUsers
         [HttpGet("GetUsers")] //aca la ruta es User/GetUsers
         public IEnumerable<UserComplete> GetUsers(){
@@ -22,7 +34,6 @@ namespace DotnetAPI.Controllers
             string query =  @"exec TutorialAppSchema.spGetUsers_withAverageSalary";
             return _dapper.LoadData<UserComplete>(query);
         }
-       
     }
 
 }
