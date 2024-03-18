@@ -16,6 +16,8 @@ dotnet watch run  => esta pendiente de los cambios y cada vez q modifico algo lo
 dotnet watch --no-hot-reload => sirve para proyectos tipo api
 dotnet restore => se usa despues de instalar paquetes para q los cargue visual studio.. 
 
+dotnet build --configuration Release => compila y generar el proyecto a deployar en la carpeta /bin/Release
+
 
 dotnet nuget list source => lista los nugets instalados
     nuget.org => es el q permite descagar paquetes, importante.
